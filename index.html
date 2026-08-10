@@ -17,7 +17,7 @@
     *{box-sizing:border-box}
     body{margin:0;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
     .wrap{max-width:760px;margin:auto;padding:16px}
-    h1{font-size:24px;margin:7px 0 15px}
+    h1{font-size:25px;margin:8px 0 16px}
     .card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 5px 22px rgba(0,0,0,.07);margin-bottom:14px}
     label{display:block;font-size:14px;font-weight:650;margin:0 0 6px}
     input,button{font:inherit}
@@ -36,6 +36,16 @@
     .summary{display:flex;justify-content:space-between;align-items:center;gap:12px}
     .summary span{color:#5d6d72}
     .summary strong{font-size:24px;color:#0f766e;text-align:right}
+    .daily-title{font-size:17px;font-weight:800;margin-bottom:10px}
+    .daily-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #e7edef}
+    .daily-row:last-child{border-bottom:0}
+    .daily-date{font-weight:700}
+    .daily-amount{font-weight:800;color:#0f766e;text-align:right}
+    .monthly-title{font-size:17px;font-weight:800;margin-bottom:10px}
+    .monthly-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #e7edef}
+    .monthly-row:last-child{border-bottom:0}
+    .monthly-date{font-weight:700}
+    .monthly-amount{font-weight:800;color:#0f766e;text-align:right}
     .empty{text-align:center;color:#718186;padding:24px 8px}
     .item{
       border:1px solid #e2e8ea;border-radius:13px;padding:13px;
@@ -89,6 +99,16 @@
     </section>
 
     <section class="card">
+      <div class="daily-title">Tổng tiền theo ngày</div>
+      <div id="dailyTotals"></div>
+    </section>
+
+    <section class="card">
+      <div class="monthly-title">Tổng tiền theo tháng</div>
+      <div id="monthlyTotals"></div>
+    </section>
+
+    <section class="card">
       <div id="list"></div>
       <div class="toolbar">
         <button id="exportBtn" class="btn secondary" type="button">Xuất dữ liệu</button>
@@ -108,6 +128,8 @@
   const amountEl = document.getElementById("amount");
   const listEl = document.getElementById("list");
   const totalEl = document.getElementById("total");
+  const dailyTotalsEl = document.getElementById("dailyTotals");
+  const monthlyTotalsEl = document.getElementById("monthlyTotals");
 
   const today = new Date();
   dateEl.value = today.toISOString().slice(0,10);
@@ -183,6 +205,54 @@
     }
     const total = items.reduce((sum, x) => sum + Number(x.amount || 0), 0);
     totalEl.textContent = money(total);
+
+    const totalsByDate = items.reduce((acc, item) => {
+      acc[item.date] = (acc[item.date] || 0) + Number(item.amount || 0);
+      return acc;
+    }, {});
+
+    const dates = Object.keys(totalsByDate).sort((a,b) => b.localeCompare(a));
+    dailyTotalsEl.innerHTML = "";
+
+    if(dates.length === 0){
+      dailyTotalsEl.innerHTML = '<div class="empty">Chưa có dữ liệu theo ngày.</div>';
+    }else{
+      dates.forEach(date => {
+        const row = document.createElement("div");
+        row.className = "daily-row";
+        row.innerHTML = `
+          <div class="daily-date">${dateVN(date)}</div>
+          <div class="daily-amount">${money(totalsByDate[date])}</div>
+        `;
+        dailyTotalsEl.appendChild(row);
+      });
+    }
+
+    const totalsByMonth = items.reduce((acc, item) => {
+      const month = item.date ? item.date.slice(0,7) : "";
+      if(month){
+        acc[month] = (acc[month] || 0) + Number(item.amount || 0);
+      }
+      return acc;
+    }, {});
+
+    const months = Object.keys(totalsByMonth).sort((a,b) => b.localeCompare(a));
+    monthlyTotalsEl.innerHTML = "";
+
+    if(months.length === 0){
+      monthlyTotalsEl.innerHTML = '<div class="empty">Chưa có dữ liệu theo tháng.</div>';
+    }else{
+      months.forEach(month => {
+        const [year, mon] = month.split("-");
+        const row = document.createElement("div");
+        row.className = "monthly-row";
+        row.innerHTML = `
+          <div class="monthly-date">Tháng ${Number(mon)}/${year}</div>
+          <div class="monthly-amount">${money(totalsByMonth[month])}</div>
+        `;
+        monthlyTotalsEl.appendChild(row);
+      });
+    }
   }
 
   form.addEventListener("submit", e => {
