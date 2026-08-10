@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Tiền chuyển">
+  <title>Quản lý tiền chuyển</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    :root{
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+      color:#17202a;background:#f4f7f8;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+    .wrap{max-width:760px;margin:auto;padding:16px}
+    h1{font-size:25px;margin:8px 0 16px}
+    .card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 5px 22px rgba(0,0,0,.07);margin-bottom:14px}
+    label{display:block;font-size:14px;font-weight:650;margin:0 0 6px}
+    input,button{font:inherit}
+    input{
+      width:100%;border:1px solid #ccd6d9;border-radius:11px;
+      padding:12px 13px;font-size:16px;background:#fff;
+    }
+    input:focus{outline:2px solid #99d5cf;border-color:#0f766e}
+    .field{margin-bottom:13px}
+    .btn{
+      border:0;border-radius:11px;padding:13px 15px;font-weight:750;
+      cursor:pointer;min-height:46px
+    }
+    .primary{width:100%;background:#0f766e;color:white}
+    .primary:active{background:#0b5e58}
+    .summary{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .summary span{color:#5d6d72}
+    .summary strong{font-size:24px;color:#0f766e;text-align:right}
+    .empty{text-align:center;color:#718186;padding:24px 8px}
+    .item{
+      border:1px solid #e2e8ea;border-radius:13px;padding:13px;
+      margin-top:10px;background:#fff
+    }
+    .item-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+    .date{font-size:13px;color:#66777c;margin-bottom:5px}
+    .content{font-weight:700;word-break:break-word}
+    .amount{font-size:18px;font-weight:800;color:#0f766e;white-space:nowrap}
+    .delete{
+      margin-top:11px;background:#fff1f1;color:#b42318;border:1px solid #ffd0cc;
+      width:100%
+    }
+    .footer-note{font-size:12px;color:#7b898d;text-align:center;margin:13px 4px}
+    .toolbar{display:flex;gap:9px;margin-top:10px}
+    .secondary{flex:1;background:#eef4f4;color:#24464a}
+    @media(min-width:640px){
+      .form-grid{display:grid;grid-template-columns:180px 1fr 180px;gap:10px;align-items:end}
+      .field{margin-bottom:0}
+      .form-grid .primary{width:auto}
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Quản lý tiền chuyển</h1>
+
+    <section class="card">
+      <form id="form">
+        <div class="form-grid">
+          <div class="field">
+            <label for="date">Ngày chuyển</label>
+            <input id="date" type="date" required>
+          </div>
+          <div class="field">
+            <label for="content">Nội dung chuyển</label>
+            <input id="content" type="text" maxlength="200" placeholder="Ví dụ: Chuyển tiền hàng" required>
+          </div>
+          <div class="field">
+            <label for="amount">Số tiền</label>
+            <input id="amount" type="text" inputmode="numeric" placeholder="Ví dụ: 1.500.000" required>
+          </div>
+        </div>
+        <button class="btn primary" type="submit" style="margin-top:13px">Thêm khoản chuyển</button>
+      </form>
+    </section>
+
+    <section class="card summary">
+      <span>Tổng tiền đã chuyển</span>
+      <strong id="total">0 ₫</strong>
+    </section>
+
+    <section class="card">
+      <div id="list"></div>
+      <div class="toolbar">
+        <button id="exportBtn" class="btn secondary" type="button">Xuất dữ liệu</button>
+        <button id="clearBtn" class="btn secondary" type="button">Xóa tất cả</button>
+      </div>
+    </section>
+
+    <div class="footer-note">Dữ liệu được tự động lưu trên trình duyệt của iPhone.</div>
+  </main>
+
+<script>
+(() => {
+  const KEY = "quanLyTienChuyen_v1";
+  const form = document.getElementById("form");
+  const dateEl = document.getElementById("date");
+  const contentEl = document.getElementById("content");
+  const amountEl = document.getElementById("amount");
+  const listEl = document.getElementById("list");
+  const totalEl = document.getElementById("total");
+
+  const today = new Date();
+  dateEl.value = today.toISOString().slice(0,10);
+
+  let items = load();
+
+  function load(){
+    try{
+      const value = JSON.parse(localStorage.getItem(KEY) || "[]");
+      return Array.isArray(value) ? value : [];
+    }catch{
+      return [];
+    }
+  }
+
+  function save(){
+    localStorage.setItem(KEY, JSON.stringify(items));
+  }
+
+  function money(n){
+    return new Intl.NumberFormat("vi-VN", {
+      style:"currency", currency:"VND", maximumFractionDigits:0
+    }).format(n);
+  }
+
+  function dateVN(value){
+    if(!value) return "";
+    const [y,m,d] = value.split("-");
+    return `${d}/${m}/${y}`;
+  }
+
+  function parseAmount(value){
+    const digits = String(value).replace(/[^\d]/g,"");
+    return Number(digits || 0);
+  }
+
+  amountEl.addEventListener("input", () => {
+    const n = parseAmount(amountEl.value);
+    amountEl.value = n ? new Intl.NumberFormat("vi-VN").format(n) : "";
+  });
+
+  function render(){
+    listEl.innerHTML = "";
+    if(items.length === 0){
+      listEl.innerHTML = '<div class="empty">Chưa có khoản chuyển nào.</div>';
+    }else{
+      items
+        .slice()
+        .sort((a,b) => b.date.localeCompare(a.date) || b.createdAt-a.createdAt)
+        .forEach(item => {
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `
+            <div class="item-top">
+              <div>
+                <div class="date">${dateVN(item.date)}</div>
+                <div class="content"></div>
+              </div>
+              <div class="amount">${money(item.amount)}</div>
+            </div>
+            <button class="btn delete" type="button">Xóa dòng này</button>
+          `;
+          div.querySelector(".content").textContent = item.content;
+          div.querySelector(".delete").addEventListener("click", () => {
+            if(confirm("Bạn có chắc muốn xóa dòng này?")){
+              items = items.filter(x => x.id !== item.id);
+              save();
+              render();
+            }
+          });
+          listEl.appendChild(div);
+        });
+    }
+    const total = items.reduce((sum, x) => sum + Number(x.amount || 0), 0);
+    totalEl.textContent = money(total);
+  }
+
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const amount = parseAmount(amountEl.value);
+    const content = contentEl.value.trim();
+
+    if(!dateEl.value || !content || amount <= 0){
+      alert("Vui lòng nhập đầy đủ ngày, nội dung và số tiền hợp lệ.");
+      return;
+    }
+
+    items.push({
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      date: dateEl.value,
+      content,
+      amount,
+      createdAt: Date.now()
+    });
+    save();
+    render();
+    contentEl.value = "";
+    amountEl.value = "";
+    contentEl.focus();
+  });
+
+  document.getElementById("clearBtn").addEventListener("click", () => {
+    if(items.length && confirm("Xóa toàn bộ dữ liệu? Thao tác này không thể hoàn tác.")){
+      items = [];
+      save();
+      render();
+    }
+  });
+
+  document.getElementById("exportBtn").addEventListener("click", () => {
+    if(!items.length){
+      alert("Chưa có dữ liệu để xuất.");
+      return;
+    }
+    const rows = [["Ngày","Nội dung","Số tiền"]];
+    items
+      .slice()
+      .sort((a,b) => a.date.localeCompare(b.date))
+      .forEach(x => rows.push([dateVN(x.date), x.content, x.amount]));
+    rows.push(["","TỔNG", items.reduce((s,x)=>s+x.amount,0)]);
+    const csv = "\uFEFF" + rows.map(r => r.map(v =>
+      `"${String(v).replace(/"/g,'""')}"`
+    ).join(",")).join("\n");
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "tien-chuyen.csv";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+
+  render();
+
+  if("serviceWorker" in navigator){
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  }
+})();
+</script>
+</body>
+</html>
